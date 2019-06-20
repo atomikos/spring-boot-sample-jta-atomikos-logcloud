@@ -15,4 +15,8 @@ This example is based on the original Spring Boot / Atomikos example, but change
 
 * You need an <a href="https://www.atomikos.com/Main/ExtremeTransactionsFreeTrial?Source=github">ExtremeTransactions 5.0.x free trial</a> to run this demo.
 * Run the SampleAtomikosApplication (a Spring Boot app).
-* Check the DBMS log by running **org.h2.tools.Console** (in the h2 jar) and connect to the database in your workspace (e.g., jdbc:h2:/path/to/spring-boot-sample-jta-atomikos-logcloud/logcloud)
+* Check the DBMS log by running **org.h2.tools.Console** (in the h2 jar) and connect to the database in your workspace (e.g., jdbc:h2:/path/to/spring-boot-sample-jta-atomikos-logcloud/logcloud).
+
+## Note
+
+You may see a pending COMMITTING record in the COORDINATOR table. This is normal, since recovery only cleans up at certain times. After a while, the record will be gone (at least under normal operating conditions).
