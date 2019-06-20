@@ -11,6 +11,9 @@
 	<artifactId>spring-boot-sample-jta-atomikos</artifactId>
 	<name>Spring Boot Atomikos JTA Sample</name>
 	<description>Spring Boot Atomikos JTA Sample</description>
+	<properties>
+		<atomikos.version>5.0.78-SNAPSHOT</atomikos.version>
+	</properties>
 	<dependencies>
 		<!-- Compile -->
 		<dependency>
