@@ -3,7 +3,7 @@ Sample project showing how easy it is to do XA with clustered, cloud-native tran
 
 ## Highlights
 
-This example is based on the original Spring Boot / Atomikos example, but changed as follows:
+This example is based on the <a href="https://github.com/spring-projects/spring-boot/tree/master/spring-boot-samples/spring-boot-sample-jta-atomikos">original Spring Boot / Atomikos example</a>, but changed as follows:
 
 * Changed the H2 database from in-memory to persistent storage.
 * Updated the Atomikos version to 5.0.x with the LogCloud capabilities.
