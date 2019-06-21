@@ -19,4 +19,4 @@ This example is based on the <a href="https://github.com/spring-projects/spring-
 
 ## Note
 
-You may see a pending COMMITTING record in the COORDINATOR table. This is normal, since recovery only cleans up at certain times. After a while, the record will be gone (at least under normal operating conditions).
+You may see a pending COMMITTING record in the COORDINATOR table. This is normal, since recovery only cleans up at certain times. After a while, the record will be gone (at least under normal operating conditions and assuming that at least one node is still running).
