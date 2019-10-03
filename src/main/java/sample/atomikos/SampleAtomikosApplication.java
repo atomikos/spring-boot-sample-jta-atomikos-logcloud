@@ -21,8 +21,12 @@ import java.io.Closeable;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Import;
+
+import com.atomikos.springboot.autoconfigure.jdbc.logcloud.LogCloudDataSourceConfiguration;
 
 @SpringBootApplication
+@Import(LogCloudDataSourceConfiguration.class)
 public class SampleAtomikosApplication {
 
 	public static void main(String[] args) throws Exception {
@@ -41,5 +45,6 @@ public class SampleAtomikosApplication {
 		Thread.sleep(100);
 		((Closeable) context).close();
 	}
+
 
 }

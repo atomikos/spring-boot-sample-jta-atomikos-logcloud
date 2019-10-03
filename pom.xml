@@ -12,7 +12,7 @@
 	<name>Spring Boot Atomikos JTA Sample</name>
 	<description>Spring Boot Atomikos JTA Sample</description>
 	<properties>
-		<atomikos.version>5.0.78-SNAPSHOT</atomikos.version>
+		<atomikos.version>5.0.79-SNAPSHOT</atomikos.version>
 	</properties>
 	<dependencies>
 		<!-- Compile -->
@@ -49,6 +49,11 @@
 		<dependency>
 			<groupId>com.atomikos</groupId>
 			<artifactId>transactions-logcloud</artifactId>
+			<version>${atomikos.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.atomikos</groupId>
+			<artifactId>transactions-springboot2</artifactId>
 			<version>${atomikos.version}</version>
 		</dependency>
 		<!-- Test -->
