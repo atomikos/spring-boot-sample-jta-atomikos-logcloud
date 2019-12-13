@@ -13,7 +13,7 @@
 	<name>Spring Boot Atomikos JTA Sample</name>
 	<description>Spring Boot Atomikos JTA Sample</description>
 	<properties>
-		<atomikos.version>5.0.82-SNAPSHOT</atomikos.version>
+		<atomikos.version>5.0.82.EVAL</atomikos.version>
 	</properties>
 	<dependencies>
 		<!-- Compile -->
