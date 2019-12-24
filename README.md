@@ -15,7 +15,7 @@ This example is based on the <a href="https://github.com/spring-projects/spring-
 
 * You need an <a href="https://www.atomikos.com/Main/ExtremeTransactionsFreeTrial?Source=github">ExtremeTransactions 5.0.x free trial</a> to run this demo.
 * Run the SampleAtomikosApplication (a Spring Boot app).
-* Check the DBMS log by running **org.h2.tools.Console** (in the h2 jar) and connect to the database in your workspace (e.g., jdbc:h2:/path/to/spring-boot-sample-jta-atomikos-logcloud/logcloud).
+* Check the DBMS log by running **org.h2.tools.Console** (in the h2 jar) and connect to the database in your workspace (e.g., jdbc:h2:/path/to/spring-boot-sample-jta-atomikos-logcloud/logcloud). You can do this by importing the maven project in your IDE (which will set the classpath) and then launching **org.h2.tools.Console** as a main class. Make sure to exit before you run SampleAtomikosApplication again or you will get weird hibernate errors. 
 
 ## Note
 
