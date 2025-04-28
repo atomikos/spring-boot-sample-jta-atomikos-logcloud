@@ -16,13 +16,13 @@
 
 package sample.atomikos;
 
-import org.assertj.core.api.Condition;
-import org.junit.Rule;
-import org.junit.Test;
 
-import org.springframework.boot.test.system.OutputCaptureRule;
 
 import static org.assertj.core.api.Assertions.assertThat;
+
+import org.assertj.core.api.Condition;
+import org.junit.jupiter.api.Test;
+import org.springframework.boot.test.system.CapturedOutput;
 
 /**
  * Basic integration tests for demo application.
@@ -31,13 +31,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public class SampleAtomikosApplicationTests {
 
-	@Rule
-	public OutputCaptureRule outputCapture = new OutputCaptureRule();
 
 	@Test
-	public void testTransactionRollback() throws Exception {
+	public void testTransactionRollback(CapturedOutput capturedOutput) throws Exception {
 		SampleAtomikosApplication.main(new String[] {});
-		String output = this.outputCapture.toString();
+		String output = capturedOutput.getOut();
 		assertThat(output).has(substring(1, "---->"));
 		assertThat(output).has(substring(1, "----> josh"));
 		assertThat(output).has(substring(2, "Count is 1"));

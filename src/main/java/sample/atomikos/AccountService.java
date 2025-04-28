@@ -16,7 +16,7 @@
 
 package sample.atomikos;
 
-import javax.transaction.Transactional;
+import jakarta.transaction.Transactional;
 
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.stereotype.Service;

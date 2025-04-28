@@ -1,0 +1,28 @@
+# Conversion to YAML from Properties formar report
+# Warnings:
+# - The yaml file had comments which are lost in the refactoring!
+spring:
+  artemis:
+    embedded:
+      queues: accounts
+  jpa:
+    open-in-view: true
+    hibernate:
+      ddl-auto: update
+  datasource:
+    url: jdbc:h2:./logcloud
+  jta:
+    atomikos:
+      datasource:
+        unique-resource-name: APP
+        local-transaction-mode: true
+      properties:
+        transaction-manager-unique-name: logcloud
+  sql:
+    init:
+      continue-on-error: true
+      mode: always
+
+atomikos:
+  properties:
+    transaction-manager-unique-name: logcloud
