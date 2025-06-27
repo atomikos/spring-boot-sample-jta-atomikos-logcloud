@@ -1,0 +1,31 @@
+# Conversion to YAML from Properties formar report
+# Warnings:
+# - The yaml file had comments which are lost in the refactoring!
+spring:
+  artemis:
+    embedded:
+      queues: accounts
+  jpa:
+    open-in-view: true
+    properties:
+      hibernate:
+        jdbc:
+          lob:
+            "[non_contextual_creation]": true
+    hibernate:
+      ddl-auto: create-drop
+  datasource:
+    url: jdbc:postgresql://localhost:5432/atomikos
+    username: atomikos
+    password: atomikos
+  jta:
+    atomikos:
+      datasource:
+        supports-tm-join: false
+        unique-resource-name: APP
+        local-transaction-mode: true
+      properties:
+        transaction-manager-unique-name: logcloud
+  sql:
+    init:
+      continue-on-error: true
