@@ -14,20 +14,8 @@ This example is based on the <a href="https://github.com/spring-projects/spring-
 
 ## About the dependencies
 
-Every `com.atomikos` dependency in this project's `pom.xml` — not only
-`transactions-logcloud` — resolves from the ExtremeTransactions
-distribution at the version pinned in the POM, including the base JTA
-and Spring Boot integration artifacts. None of these coordinates, at
-this version, are published to Maven Central. The free trial link
-below is required to build the whole project, not only its
-LogCloud-specific part.
-
-Why here and phrased this way:
-- It sits between "Highlights" (which already says "Updated the Atomikos version to 6.0.x with the LogCloud capabilities") and "How To Run" (which already says "You need an ExtremeTransactions free trial to run this demo") — so it doesn't duplicate either, it closes the specific gap: a reader could otherwise assume the trial requirement applies only to the LogCloud piece.
-- Purely factual, no claim about intent — doesn't accuse anyone of anything, just states what's verifiably true (confirmed against Maven Central above).
-- Doesn't touch the existing structure, so it's additive per the churn-proportionality guidance — nothing else in the README changes.
-
-This is draft text only — I haven't touched the actual GitHub repos (no write access set up, and that'd need its own explicit approval separate from drafting). Want me to also fold in a name for the "current" version once you settle the shared-property question, or leave the version number out of this note entirely since it's about scope, not the specific pin?
+Every `com.atomikos` dependency in this project's `pom.xml` — not only `transactions-logcloud` — resolves from the ExtremeTransactions distribution at the version pinned in the POM, including the base JTA and Spring Boot integration artifacts.
+None of these coordinates, at this version, are published to Maven Central. The free trial link below is required to build the whole project, not only its LogCloud-specific part.
 
 ## How To Run
 
