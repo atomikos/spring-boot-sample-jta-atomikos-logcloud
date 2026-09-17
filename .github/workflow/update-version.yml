@@ -1,0 +1,16 @@
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          VERSION=$(curl -s https://www.atomikos.com/Main/WebHome | grep -oP 'Latest version \K[\d.]+')
+          sed -i "s/<!--VERSION-->.*<!--\/VERSION-->/<!--VERSION-->${VERSION}<!--\/VERSION-->/" README.md
+      - run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git diff --quiet README.md || (git add README.md && git commit -m "Update Atomikos version" && git push)
