@@ -11,10 +11,9 @@ This example is based on the <a href="https://github.com/spring-projects/spring-
 * Modified application.properties to configure the LogCloud to use the application's datasource for logging and recovery (so no 2 datasources are needed).
 * Added schema.sql and data.sql to initialize the LogCloud tables.
 
-
 ## About the dependencies
 
-Every `com.atomikos` dependency in this project's `pom.xml` — not only `transactions-logcloud` — resolves from the ExtremeTransactions distribution at the version pinned in the POM, including the base JTA and Spring Boot integration artifacts.
+Every `com.atomikos` dependency in this project's `pom.xml` (not only `transactions-logcloud`) resolves from the ExtremeTransactions distribution at the version pinned in the POM, including the base JTA and Spring Boot integration artifacts.
 None of these coordinates, at this version, are published to Maven Central. The free trial link below is required to build the whole project, not only its LogCloud-specific part.
 
 ## How To Run
