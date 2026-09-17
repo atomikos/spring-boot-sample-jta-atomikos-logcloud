@@ -15,7 +15,7 @@ This example is based on the <a href="https://github.com/spring-projects/spring-
 
 Every `com.atomikos` dependency in this project's `pom.xml` (not only `transactions-logcloud`) resolves from the ExtremeTransactions distribution at the version pinned in the POM, including the base JTA and Spring Boot integration artifacts.
 None of these coordinates, at this version, are published to Maven Central. The free trial link below is required to build the whole project, not only its LogCloud-specific part.
-Latest stable version: <!--VERSION-->6.0.120<!--/VERSION-->
+Latest stable version: <!--VERSION-->6.0.119<!--/VERSION-->
 
 ## How To Run
 
