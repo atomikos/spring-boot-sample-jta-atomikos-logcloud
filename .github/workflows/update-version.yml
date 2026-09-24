@@ -8,7 +8,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: |
-          VERSION=$(curl -s https://www.atomikos.com/Main/WebHome | grep -oP 'Latest version \K[\d.]+')
+          VERSION=$(curl -s --compressed https://www.atomikos.com/Main/WebHome | grep -oP 'Latest version \K[\d.]+')
           sed -i "s/<!--VERSION-->.*<!--\/VERSION-->/<!--VERSION-->${VERSION}<!--\/VERSION-->/" README.md
       - run: |
           git config user.name "github-actions"
