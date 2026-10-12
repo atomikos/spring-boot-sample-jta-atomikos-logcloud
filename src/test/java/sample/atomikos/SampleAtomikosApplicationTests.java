@@ -22,13 +22,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.assertj.core.api.Condition;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 
 /**
  * Basic integration tests for demo application.
  *
  * @author Phillip Webb
  */
+@ExtendWith(OutputCaptureExtension.class)
 public class SampleAtomikosApplicationTests {
 
 

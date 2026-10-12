@@ -6,13 +6,14 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.4.5</version>
+		<version>4.1.1</version>
 		<relativePath /> <!-- lookup parent from repository -->
 	</parent>
 	<artifactId>spring-boot-sample-jta-atomikos</artifactId>
 	<name>Spring Boot Atomikos JTA Sample</name>
 	<description>Spring Boot Atomikos JTA Sample</description>
 	<properties>
+		<java.version>17</java.version>
 		<atomikos.version>6.0.114</atomikos.version>
 	</properties>
 	<dependencies>
@@ -27,7 +28,7 @@
 		</dependency>
 		<dependency>
 			<groupId>com.atomikos</groupId>
-			<artifactId>transactions-spring-boot3.4-starter</artifactId>
+			<artifactId>transactions-spring-boot4-starter</artifactId>
 			<version>${atomikos.version}</version>
 		</dependency>
 		<dependency>
@@ -35,14 +36,8 @@
 			<artifactId>spring-boot-starter-artemis</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.activemq</groupId>
-			<artifactId>artemis-jms-server</artifactId>
-			<exclusions>
-				<exclusion>
-					<artifactId>geronimo-jms_2.0_spec</artifactId>
-					<groupId>org.apache.geronimo.specs</groupId>
-				</exclusion>
-			</exclusions>
+			<groupId>org.apache.artemis</groupId>
+			<artifactId>artemis-jakarta-server</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>com.h2database</groupId>
@@ -61,15 +56,10 @@
 		</dependency>
 		<dependency>
 			<groupId>com.atomikos</groupId>
-			<artifactId>transactions-spring-boot</artifactId>
-			<version>${atomikos.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.atomikos</groupId>
 			<artifactId>transactions-spring-boot-logcloud</artifactId>
 			<version>${atomikos.version}</version>
 		</dependency>
-	<dependency>
+		<dependency>
 			<groupId>com.atomikos</groupId>
 			<artifactId>transactions-remoting-recovery</artifactId>
 			<version>${atomikos.version}</version>
