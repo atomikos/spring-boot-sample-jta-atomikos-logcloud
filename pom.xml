@@ -6,14 +6,15 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.3.4.RELEASE</version>
+		<version>4.1.1</version>
 		<relativePath /> <!-- lookup parent from repository -->
 	</parent>
 	<artifactId>spring-boot-sample-jta-atomikos</artifactId>
 	<name>Spring Boot Atomikos JTA Sample</name>
 	<description>Spring Boot Atomikos JTA Sample</description>
 	<properties>
-		<atomikos.version>5.0.108.EVAL</atomikos.version>
+		<java.version>17</java.version>
+		<atomikos.version>6.0.114</atomikos.version>
 	</properties>
 	<dependencies>
 		<!-- Compile -->
@@ -26,22 +27,17 @@
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-jta-atomikos</artifactId>
+			<groupId>com.atomikos</groupId>
+			<artifactId>transactions-spring-boot4-starter</artifactId>
+			<version>${atomikos.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-artemis</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.activemq</groupId>
-			<artifactId>artemis-jms-server</artifactId>
-			<exclusions>
-				<exclusion>
-					<artifactId>geronimo-jms_2.0_spec</artifactId>
-					<groupId>org.apache.geronimo.specs</groupId>
-				</exclusion>
-			</exclusions>
+			<groupId>org.apache.artemis</groupId>
+			<artifactId>artemis-jakarta-server</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>com.h2database</groupId>
@@ -58,25 +54,19 @@
 			<artifactId>transactions-logcloud</artifactId>
 			<version>${atomikos.version}</version>
 		</dependency>
-
-		<!-- removed for latest 5.0.x <dependency> <groupId>com.atomikos</groupId> 
-			<artifactId>transactions-springboot2</artifactId> <version>${atomikos.version}</version> 
-			</dependency> -->
-
-		<!-- added for latest 5.0.x -->
-		<dependency>
-			<groupId>com.atomikos</groupId>
-			<artifactId>transactions-spring-boot-starter</artifactId>
-			<version>${atomikos.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.atomikos</groupId>
-			<artifactId>transactions-spring-boot</artifactId>
-			<version>${atomikos.version}</version>
-		</dependency>
 		<dependency>
 			<groupId>com.atomikos</groupId>
 			<artifactId>transactions-spring-boot-logcloud</artifactId>
+			<version>${atomikos.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.atomikos</groupId>
+			<artifactId>transactions-remoting-recovery</artifactId>
+			<version>${atomikos.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.atomikos</groupId>
+			<artifactId>transactions-remoting</artifactId>
 			<version>${atomikos.version}</version>
 		</dependency>
 		<dependency>
@@ -85,7 +75,10 @@
 			<version>2.0.1</version>
 			<scope>provided</scope>
 		</dependency>
-
+		<dependency>
+    		<groupId>jakarta.xml.bind</groupId>
+    		<artifactId>jakarta.xml.bind-api</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-autoconfigure</artifactId>
@@ -112,19 +105,4 @@
 			</plugin>
 		</plugins>
 	</build>
-	<profiles>
-		<profile>
-			<id>java9+</id>
-			<activation>
-				<jdk>[9,)</jdk>
-			</activation>
-			<dependencies>
-				<dependency>
-					<groupId>jakarta.xml.bind</groupId>
-					<artifactId>jakarta.xml.bind-api</artifactId>
-					<version>2.3.2</version>
-				</dependency>
-			</dependencies>
-		</profile>
-	</profiles>
 </project>

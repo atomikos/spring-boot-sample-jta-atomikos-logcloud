@@ -1,5 +1,5 @@
 # spring-boot-sample-jta-atomikos-logcloud
-Sample project showing how easy it is to do XA with clustered, cloud-native transaction logging and recovery. You can run as many instances of this application as you like: scale up and down dynamically or kill any node with your chaos monkey and XA recovery simply works (as long as at least one node is up). This gives you self-healing XA transactions in the cloud...
+Sample project (Spring Boot 4, Atomikos ExtremeTransactions 6.0.x) showing how easy it is to do XA with clustered, cloud-native transaction logging and recovery. You can run as many instances of this application as you like: scale up and down dynamically or kill any node with your chaos monkey and XA recovery simply works (as long as at least one node is up). This gives you self-healing XA transactions in the cloud...
 
 ## Highlights
 
@@ -8,7 +8,7 @@ This example is based on the <a href="https://github.com/spring-projects/spring-
 * Changed the H2 database from in-memory to persistent storage.
 * Updated the Atomikos version to the latest with the LogCloud capabilities.
 * Added the transactions-logcloud dependency in the POM, so the LogCloud is activated automatically and overrides file-based logging.
-* Modified application.properties to configure the LogCloud to use the application's datasource for logging and recovery (so no 2 datasources are needed).
+* Modified application.yml to configure the LogCloud to use the application's datasource for logging and recovery (so no 2 datasources are needed).
 * Added schema.sql and data.sql to initialize the LogCloud tables.
 
 ## About the dependencies
