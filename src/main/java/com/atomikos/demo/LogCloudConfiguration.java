@@ -23,7 +23,8 @@ import org.springframework.context.annotation.Import;
 import com.atomikos.springboot.autoconfigure.jdbc.logcloud.LogCloudDataSourceConfiguration;
 
 /**
- * Registers the LogCloud datasource (from transactions-spring-boot4-logcloud), which
+ * Registers the LogCloud datasource (from transactions-spring-boot-logcloud, which
+ * picks its Spring Boot 4 variant here), which
  * reuses the application's datasource settings, so no second database is needed.
  * <p>
  * Only when LogCloud is on the classpath: without the transactions-logcloud jar,

@@ -21,8 +21,8 @@ Every `com.atomikos` dependency in this project's `pom.xml` (not only `transacti
 None of these coordinates, at this version, are published to Maven Central. The free trial link below is required to build the whole project, not only its LogCloud-specific part.
 Latest stable version: <!--VERSION-->6.0.120<!--/VERSION-->
 
-This demo needs `transactions-spring-boot4-logcloud`, the Spring Boot 4 LogCloud
-module, which is new in 6.0.121: until that is released, the POM builds with
+This demo needs the Spring Boot 4 support in `transactions-spring-boot-logcloud`,
+which is new in 6.0.121: until that is released, the POM builds with
 `6.0.121-SNAPSHOT`.
 
 ## Run it
@@ -163,9 +163,10 @@ public long placeOrder(String product) {
 ```
 
 With `transactions-spring-boot4-starter` on the classpath, that is one XA
-transaction across PostgreSQL and Artemis. Adding `transactions-spring-boot4-logcloud`
-(which brings `transactions-logcloud`) moves the transaction log from local files
-into the database ([`pom.xml`](pom.xml)):
+transaction across PostgreSQL and Artemis. Adding `transactions-logcloud` moves the
+transaction log from local files into the database; `transactions-spring-boot-logcloud`
+configures its datasource (for Spring Boot 2, 3 and 4), and LogCloud needs the
+remoting modules ([`pom.xml`](pom.xml)):
 
 ```xml
 <dependencyManagement>
@@ -188,7 +189,21 @@ into the database ([`pom.xml`](pom.xml)):
 </dependency>
 <dependency>
     <groupId>com.atomikos</groupId>
-    <artifactId>transactions-spring-boot4-logcloud</artifactId>
+    <artifactId>transactions-logcloud</artifactId>
+</dependency>
+<dependency>
+    <groupId>com.atomikos</groupId>
+    <artifactId>transactions-spring-boot-logcloud</artifactId>
+</dependency>
+<dependency>  <!-- versions come from the BOM, but the classifier must match it -->
+    <groupId>com.atomikos</groupId>
+    <artifactId>transactions-remoting-recovery</artifactId>
+    <classifier>jakarta</classifier>
+</dependency>
+<dependency>
+    <groupId>com.atomikos</groupId>
+    <artifactId>transactions-remoting</artifactId>
+    <classifier>jakarta</classifier>
 </dependency>
 <dependency>  <!-- needed at runtime by transactions-remoting, but provided-scope there -->
     <groupId>jakarta.ws.rs</groupId>
@@ -217,7 +232,7 @@ demo (`default-jta-timeout` and `recovery.delay` of 5 seconds; with these
 settings the leader lease lasted 5 to 10 seconds in our runs); production would
 use its real values.
 
-`transactions-spring-boot4-logcloud` is not auto-configured: `LogCloudConfiguration`
+`transactions-spring-boot-logcloud` is not auto-configured: `LogCloudConfiguration`
 imports its `LogCloudDataSourceConfiguration`, and only when LogCloud is on the
 classpath, so that the same image can also run without it.
 

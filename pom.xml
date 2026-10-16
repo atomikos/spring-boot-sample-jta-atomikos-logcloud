@@ -39,10 +39,25 @@
 			<version>${atomikos.version}</version>
 		</dependency>
 		<!-- Atomikos LogCloud: the transaction log lives in the database instead of on local disk.
-		     Brings transactions-logcloud and the remoting modules it needs. -->
+		     Versions from the BOM; the remoting modules need their jakarta variant. -->
 		<dependency>
 			<groupId>com.atomikos</groupId>
-			<artifactId>transactions-spring-boot4-logcloud</artifactId>
+			<artifactId>transactions-logcloud</artifactId>
+		</dependency>
+		<!-- the LogCloud datasource configuration, for Spring Boot 2, 3 and 4 -->
+		<dependency>
+			<groupId>com.atomikos</groupId>
+			<artifactId>transactions-spring-boot-logcloud</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.atomikos</groupId>
+			<artifactId>transactions-remoting-recovery</artifactId>
+			<classifier>jakarta</classifier>
+		</dependency>
+		<dependency>
+			<groupId>com.atomikos</groupId>
+			<artifactId>transactions-remoting</artifactId>
+			<classifier>jakarta</classifier>
 		</dependency>
 		<!-- needed at runtime by transactions-remoting, but provided-scope there -->
 		<dependency>
