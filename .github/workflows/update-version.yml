@@ -20,7 +20,10 @@ jobs:
             exit 1
           fi
           sed -i "s/<!--VERSION-->.*<!--\/VERSION-->/<!--VERSION-->${VERSION}<!--\/VERSION-->/" README.md
+          # keep the version the project builds with in line with the one the README advertises
+          sed -i "s#<atomikos.version>.*</atomikos.version>#<atomikos.version>${VERSION}</atomikos.version>#" pom.xml
+          grep -q "<atomikos.version>${VERSION}</atomikos.version>" pom.xml || { echo "::error::No <atomikos.version> property found in pom.xml"; exit 1; }
       - run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git diff --quiet README.md || (git add README.md && git commit -m "Update Atomikos version" && git push)
+          git diff --quiet README.md pom.xml || (git add README.md pom.xml && git commit -m "Update Atomikos version" && git push)
