@@ -4,7 +4,7 @@ spring:
 
   # PostgreSQL through its XA driver, so it can join a distributed transaction.
   # The URL is explicit (not only a Docker Compose service connection) because
-  # LogCloudConfiguration reuses it for the LogCloud transaction log.
+  # transactions-spring-boot-logcloud reuses it for the LogCloud transaction log.
   datasource:
     url: jdbc:postgresql://localhost:5432/shop
     username: shop
@@ -34,6 +34,12 @@ spring:
         unique-resource-name: shopJMS
         min-pool-size: 2
         max-pool-size: 10
+      # The LogCloud log's own connections (default: 1). With 6.0.121-SNAPSHOT a pool
+      # of 1 deadlocks at startup: waiting for the one connection publishes an event
+      # whose LogCloud listener borrows from the same pool again (FogBugz case 232893).
+      logcloud:
+        min-pool-size: 1
+        max-pool-size: 3
 
   # Keep the tables (and the evidence) across restarts - and never drop them
   # under another node that is still running.

@@ -20,9 +20,18 @@ jobs:
             exit 1
           fi
           sed -i "s/<!--VERSION-->.*<!--\/VERSION-->/<!--VERSION-->${VERSION}<!--\/VERSION-->/" README.md
-          # keep the version the project builds with in line with the one the README advertises
-          sed -i "s#<atomikos.version>.*</atomikos.version>#<atomikos.version>${VERSION}</atomikos.version>#" pom.xml
-          grep -q "<atomikos.version>${VERSION}</atomikos.version>" pom.xml || { echo "::error::No <atomikos.version> property found in pom.xml"; exit 1; }
+          # move the version the project builds with forward to the latest release - never back:
+          # the POM may already be ahead (e.g. 6.0.121-SNAPSHOT, for a feature not released yet),
+          # and a snapshot is replaced only by its own release or a later one
+          CURRENT=$(grep -oP '<atomikos.version>\K[^<]+' pom.xml || true)
+          [ -n "$CURRENT" ] || { echo "::error::No <atomikos.version> property found in pom.xml"; exit 1; }
+          BASE=${CURRENT%-SNAPSHOT}
+          newer() { [ "$1" != "$2" ] && [ "$(printf '%s\n' "$1" "$2" | sort -V | tail -n 1)" = "$1" ]; }
+          if newer "$VERSION" "$BASE" || { [ "$VERSION" = "$BASE" ] && [ "$CURRENT" != "$BASE" ]; }; then
+            sed -i "s#<atomikos.version>.*</atomikos.version>#<atomikos.version>${VERSION}</atomikos.version>#" pom.xml
+          else
+            echo "pom.xml keeps atomikos.version ${CURRENT} (latest release: ${VERSION})"
+          fi
       - run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"

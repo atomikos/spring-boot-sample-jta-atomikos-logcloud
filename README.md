@@ -21,6 +21,10 @@ Every `com.atomikos` dependency in this project's `pom.xml` (not only `transacti
 None of these coordinates, at this version, are published to Maven Central. The free trial link below is required to build the whole project, not only its LogCloud-specific part.
 Latest stable version: <!--VERSION-->6.0.120<!--/VERSION-->
 
+This demo needs the Spring Boot 4 support in `transactions-spring-boot-logcloud`,
+which is new in 6.0.121: until that is released, the POM builds with
+`6.0.121-SNAPSHOT`.
+
 ## Run it
 
 You need Java 17+, Docker (Maven comes with the wrapper, `./mvnw`), and an
@@ -159,8 +163,53 @@ public long placeOrder(String product) {
 ```
 
 With `transactions-spring-boot4-starter` on the classpath, that is one XA
-transaction across PostgreSQL and Artemis. Adding `transactions-logcloud` moves
-the transaction log from local files into the database.
+transaction across PostgreSQL and Artemis. Adding `transactions-logcloud` moves the
+transaction log from local files into the database; `transactions-spring-boot-logcloud`
+configures its datasource (for Spring Boot 2, 3 and 4), and LogCloud needs the
+remoting modules ([`pom.xml`](pom.xml)):
+
+```xml
+<dependencyManagement>
+    <dependencies>
+        <!-- the right (jakarta or not) variant of every ExtremeTransactions artifact -->
+        <dependency>
+            <groupId>com.atomikos</groupId>
+            <artifactId>extreme-transactions-jakarta</artifactId>
+            <version>${atomikos.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+
+<dependency>
+    <groupId>com.atomikos</groupId>
+    <artifactId>transactions-spring-boot4-starter</artifactId>
+    <version>${atomikos.version}</version>
+</dependency>
+<dependency>
+    <groupId>com.atomikos</groupId>
+    <artifactId>transactions-logcloud</artifactId>
+</dependency>
+<dependency>
+    <groupId>com.atomikos</groupId>
+    <artifactId>transactions-spring-boot-logcloud</artifactId>
+</dependency>
+<dependency>  <!-- versions come from the BOM, but the classifier must match it -->
+    <groupId>com.atomikos</groupId>
+    <artifactId>transactions-remoting-recovery</artifactId>
+    <classifier>jakarta</classifier>
+</dependency>
+<dependency>
+    <groupId>com.atomikos</groupId>
+    <artifactId>transactions-remoting</artifactId>
+    <classifier>jakarta</classifier>
+</dependency>
+<dependency>  <!-- needed at runtime by transactions-remoting, but provided-scope there -->
+    <groupId>jakarta.ws.rs</groupId>
+    <artifactId>jakarta.ws.rs-api</artifactId>
+</dependency>
+```
 
 What makes the nodes one cluster ([`application.yml`](src/main/resources/application.yml)):
 
@@ -169,8 +218,8 @@ What makes the nodes one cluster ([`application.yml`](src/main/resources/applica
   The `LEADER` table elects the one node that runs recovery for the whole domain.
 - **The same resource names** (`shopDB`, `shopJMS`) on every node: a node can only
   recover the prepared branches of a resource it knows by the same name.
-- **The LogCloud datasource** is the application's own PostgreSQL
-  ([`LogCloudConfiguration`](src/main/java/com/atomikos/demo/LogCloudConfiguration.java)),
+- **The LogCloud datasource** is the application's own PostgreSQL (configured
+  automatically by `transactions-spring-boot-logcloud` from `spring.datasource.*`),
   so no second database is needed. [`schema.sql`](src/main/resources/schema.sql)
   creates its tables; every node runs it at startup, so it is idempotent.
 - **`ddl-auto: update`**, never `create-drop`: a node that stops must not drop the
@@ -183,9 +232,8 @@ demo (`default-jta-timeout` and `recovery.delay` of 5 seconds; with these
 settings the leader lease lasted 5 to 10 seconds in our runs); production would
 use its real values.
 
-`LogCloudConfiguration` exists because the `LogCloudDataSourceConfiguration` that
-ships in `transactions-spring-boot-logcloud` 6.0.120 is compiled against the
-pre-Boot 4 package of `DataSourceProperties`. It does the same thing on Boot 4.
+`transactions-spring-boot-logcloud` is auto-configured: having it on the classpath
+is enough, no Atomikos code is needed in the application.
 
 ## Tests
 

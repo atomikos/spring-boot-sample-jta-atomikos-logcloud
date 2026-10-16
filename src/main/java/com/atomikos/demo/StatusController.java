@@ -60,8 +60,9 @@ public class StatusController {
 	// how LogCloud identifies this JVM in LEADER.ACTIVE_JVM_ID (pid@host)
 	private static final String JVM_ID = ManagementFactory.getRuntimeMXBean().getName();
 
-	// "logcloud" (shared, in PostgreSQL) or "file" (on this node's own disk)
-	private static final String TRANSACTION_LOG = ClassUtils.isPresent(LogCloudConfiguration.LOGCLOUD_LOG_FACTORY,
+	// "logcloud" (shared, in PostgreSQL) or "file" (on this node's own disk): Atomikos
+	// keeps its log in the database whenever transactions-logcloud is on the classpath
+	private static final String TRANSACTION_LOG = ClassUtils.isPresent("com.atomikos.logcloud.oltp.JdbcOltpLogFactory",
 			StatusController.class.getClassLoader()) ? "logcloud" : "file";
 
 	private final JdbcTemplate jdbc;
