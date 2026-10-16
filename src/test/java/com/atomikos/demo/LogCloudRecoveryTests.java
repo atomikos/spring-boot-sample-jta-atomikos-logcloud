@@ -20,10 +20,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -118,7 +120,9 @@ class LogCloudRecoveryTests {
 			if (crashed.compareAndSet(false, true)) { // a real crash happens once
 				inDoubtAtCrash.set(countInPostgres("SELECT count(*) FROM pg_prepared_xacts"));
 				ordersAtCrash.set(countInPostgres("SELECT count(*) FROM purchase_order"));
-				committingAtCrash.set(countInPostgres("SELECT count(*) FROM coordinator WHERE state = 'COMMITTING'"));
+				// the decision for exactly this transaction, not one left over from an earlier test
+				committingAtCrash.set(countInPostgres("SELECT count(*) FROM coordinator WHERE state = 'COMMITTING' AND id = '"
+						+ coordinatorIdOf(singleInDoubtGid()) + "'"));
 				throw new IllegalStateException("simulated crash");
 			}
 		});
@@ -128,7 +132,7 @@ class LogCloudRecoveryTests {
 		assertThat(crashed).as("the crash switch fired in phase 2").isTrue();
 		assertThat(inDoubtAtCrash).as("prepared transactions at the crash").hasValue(1);
 		assertThat(ordersAtCrash).as("committed orders at the crash").hasValue(0);
-		assertThat(committingAtCrash).as("commit decisions in the LogCloud log at the crash").hasPositiveValue();
+		assertThat(committingAtCrash).as("this transaction's commit decision in the LogCloud log at the crash").hasValue(1);
 		await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
 			assertThat(this.orders.findById(id)).isPresent();
 			assertThat(this.shipments.findAll()).extracting(Shipment::getOrderId).containsExactly(id);
@@ -136,6 +140,22 @@ class LogCloudRecoveryTests {
 		});
 		assertThat(new File(LOCAL_LOG_DIR).listFiles((dir, name) -> name.endsWith(".log")))
 			.as("file-based transaction logs").isNullOrEmpty();
+	}
+
+	private static String singleInDoubtGid() {
+		try (Connection connection = postgres.createConnection("");
+				ResultSet result = connection.createStatement().executeQuery("SELECT gid FROM pg_prepared_xacts")) {
+			result.next();
+			return result.getString(1);
+		}
+		catch (SQLException ex) {
+			throw new IllegalStateException(ex);
+		}
+	}
+
+	// PostgreSQL's gid is formatId_base64(gtrid)_base64(bqual); Atomikos' gtrid is the coordinator id
+	private static String coordinatorIdOf(String gid) {
+		return new String(Base64.getDecoder().decode(gid.split("_")[1]), StandardCharsets.US_ASCII);
 	}
 
 	// straight to PostgreSQL, outside Atomikos and the transaction being committed

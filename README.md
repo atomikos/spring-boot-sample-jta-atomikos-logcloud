@@ -28,12 +28,15 @@ You need Java 17+, Maven, Docker, and an
 (it gives you access to the Maven repository with the `com.atomikos` artifacts).
 
 Start two nodes, each in its own terminal. The first one also starts PostgreSQL
-and Artemis (`compose.yaml`):
+and Artemis (`compose.yaml`) and creates the tables, so start the second one
+once the first is up:
 
 ```bash
-mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=8080
-mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=8081
+mvn spring-boot:run "-Dspring-boot.run.arguments=--server.port=8080"
+mvn spring-boot:run "-Dspring-boot.run.arguments=--server.port=8081"
 ```
+
+(Keep the quotes: without them, PowerShell splits the argument at the dot.)
 
 Open **http://localhost:8080/**. The page shows both nodes (which one is up,
 which one is the recovery leader) and the shared state in PostgreSQL: orders and
@@ -67,6 +70,10 @@ Every order should be shipped exactly once.
    `COMMITTING` decision from the shared log, and commits the prepared branches.
    The order appears — *placed by* the crashed node, *shipped by* the survivor —
    and nothing is left in doubt.
+
+Crash the other node (the one that is *not* the leader) and the same happens
+without a takeover: the leader is alive and commits the crashed node's
+transaction on its next recovery pass, also within about 10 seconds.
 
 Prefer the terminal?
 
