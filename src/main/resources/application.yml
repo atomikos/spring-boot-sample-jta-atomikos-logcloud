@@ -1,28 +1,71 @@
-# Conversion to YAML from Properties formar report
-# Warnings:
-# - The yaml file had comments which are lost in the refactoring!
 spring:
-  artemis:
-    embedded:
-      queues: accounts
-  jpa:
-    open-in-view: true
-    hibernate:
-      ddl-auto: update
+  application:
+    name: logcloud-demo
+
+  # PostgreSQL through its XA driver, so it can join a distributed transaction.
+  # The URL is explicit (not only a Docker Compose service connection) because
+  # LogCloudConfiguration reuses it for the LogCloud transaction log.
   datasource:
-    url: jdbc:h2:./logcloud
+    url: jdbc:postgresql://localhost:5432/shop
+    username: shop
+    password: shop
+    xa:
+      data-source-class-name: org.postgresql.xa.PGXADataSource
+
+  # Artemis; Spring Boot creates an XA ConnectionFactory for it
+  artemis:
+    mode: native
+    broker-url: tcp://localhost:61616
+    user: artemis
+    password: artemis
+
   jta:
     atomikos:
+      # The same resource names on every node: a node can only recover the
+      # prepared branches of a resource it knows by the same name.
       datasource:
-        unique-resource-name: APP
-        local-transaction-mode: true
-      properties:
-        transaction-manager-unique-name: logcloud
+        unique-resource-name: shopDB
+        min-pool-size: 2
+        max-pool-size: 10
+      connectionfactory:
+        unique-resource-name: shopJMS
+        min-pool-size: 2
+        max-pool-size: 10
+
+  # Keep the tables (and the evidence) across restarts - and never drop them
+  # under another node that is still running.
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+  # Creates the LogCloud tables (idempotent, so every node can run it)
   sql:
     init:
-      continue-on-error: true
       mode: always
+
+  docker:
+    compose:
+      # start compose.yaml if needed, but leave it running when a node stops or crashes
+      lifecycle-management: start-only
 
 atomikos:
   properties:
+    # Every node uses the same name: they form one LogCloud recovery domain and
+    # share one transaction log, so any node can finish what another started.
     transaction-manager-unique-name: logcloud
+    # short timeouts so that recovery happens within seconds during a demo
+    default-jta-timeout: 5s
+    recovery:
+      delay: 5s
+
+server:
+  port: 8080
+
+logging:
+  level:
+    root: WARN
+    com.atomikos.demo: INFO
+    org.springframework.boot.web.server: INFO
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [${server.port}] %msg%n"

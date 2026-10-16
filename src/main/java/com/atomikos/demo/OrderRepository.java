@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2019 the original author or authors.
+ * Copyright 2026 Atomikos
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,17 +14,10 @@
  * limitations under the License.
  */
 
-package sample.atomikos;
+package com.atomikos.demo;
 
-import org.springframework.jms.annotation.JmsListener;
-import org.springframework.stereotype.Component;
+import org.springframework.data.jpa.repository.JpaRepository;
 
-@Component
-public class Messages {
-
-	@JmsListener(destination = "accounts")
-	public void onMessage(String content) {
-		System.out.println("----> " + content);
-	}
+public interface OrderRepository extends JpaRepository<PurchaseOrder, Long> {
 
 }

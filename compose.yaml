@@ -1,0 +1,22 @@
+# PostgreSQL (orders, shipments and the LogCloud transaction log) and Artemis (the orders queue),
+# shared by every node of the demo. Spring Boot starts it on mvn spring-boot:run.
+services:
+  postgres:
+    image: postgres:17-alpine
+    # XA needs prepared transactions; PostgreSQL disables them by default (0)
+    command: ["postgres", "-c", "max_prepared_transactions=100"]
+    environment:
+      POSTGRES_DB: shop
+      POSTGRES_USER: shop
+      POSTGRES_PASSWORD: shop
+    ports:
+      - "5432:5432"
+
+  artemis:
+    image: apache/activemq-artemis:2.40.0-alpine
+    environment:
+      ARTEMIS_USER: artemis
+      ARTEMIS_PASSWORD: artemis
+    ports:
+      - "61616:61616"
+      - "8161:8161"

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2019 the original author or authors.
+ * Copyright 2026 Atomikos
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,30 +14,45 @@
  * limitations under the License.
  */
 
-package sample.atomikos;
+package com.atomikos.demo;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 
+/**
+ * An order, stored in PostgreSQL.
+ */
 @Entity
-public class Account {
+public class PurchaseOrder {
 
 	@Id
 	@GeneratedValue
 	private Long id;
 
-	private String username;
+	private String product;
 
-	Account() {
+	// the port of the node that placed the order
+	private int placedBy;
+
+	protected PurchaseOrder() {
 	}
 
-	public Account(String username) {
-		this.username = username;
+	public PurchaseOrder(String product, int placedBy) {
+		this.product = product;
+		this.placedBy = placedBy;
 	}
 
-	public String getUsername() {
-		return this.username;
+	public Long getId() {
+		return this.id;
+	}
+
+	public String getProduct() {
+		return this.product;
+	}
+
+	public int getPlacedBy() {
+		return this.placedBy;
 	}
 
 }

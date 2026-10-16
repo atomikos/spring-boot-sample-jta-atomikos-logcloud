@@ -14,5 +14,3 @@ buildNumber.properties
 /transaction-logs/
 /.settings/
 /.classpath
-/logcloud.mv.db
-/logcloud.trace.db

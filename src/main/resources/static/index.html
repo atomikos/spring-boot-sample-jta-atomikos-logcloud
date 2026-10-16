@@ -1,0 +1,180 @@
+<!doctype html>
+<!--
+  Copyright 2026 Atomikos
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      https://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LogCloud recovery demo</title>
+<!-- Polls every node (?nodes=8080,8081 by default): which nodes are up, which one leads
+     recovery, and the shared state in PostgreSQL, read through any node that is still up. -->
+<style>
+  :root { --fg: #1a1a1a; --muted: #555; --line: #ddd; --bg: #fff; --card: #f6f8fa; --blue: #1f6feb; --red: #d1242f; --doubt: #fff8c5; --green: #1a7f37; }
+  body { font: 18px/1.4 system-ui, sans-serif; margin: 2rem auto; max-width: 64rem; padding: 0 1rem; color: var(--fg); background: var(--bg); }
+  h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+  h2 { font-size: .9rem; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); margin: 2rem 0 .5rem; }
+  .lead { color: var(--muted); margin: 0 0 1.5rem; }
+  input, button { font: inherit; padding: .45rem .9rem; border-radius: .4rem; border: 1px solid #888; }
+  input { width: 8rem; }
+  button { background: #f4f4f4; cursor: pointer; }
+  button.order { background: var(--blue); border-color: var(--blue); color: #fff; }
+  button.crash { background: #fff1f0; border-color: var(--red); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  #nodes { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 1rem; margin-top: 1rem; }
+  .node { background: var(--card); border: 2px solid var(--line); border-radius: .6rem; padding: 1rem; }
+  .node.up { border-color: var(--green); }
+  .node.down { border-color: var(--red); background: #fff1f0; }
+  .node h3 { margin: 0 0 .25rem; font-size: 1.15rem; }
+  .node .state { margin: 0 0 .75rem; color: var(--muted); }
+  .node .buttons { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .badge[hidden] { display: none; }
+  .badge { display: inline-block; font-size: .8rem; padding: .1rem .5rem; border-radius: 1rem; background: var(--blue); color: #fff; margin-left: .4rem; vertical-align: middle; }
+  #result { min-height: 1.5em; margin: 1rem 0 0; font-weight: 600; }
+  #down { display: none; padding: 1rem; border-radius: .4rem; background: #1a1a1a; color: #fff; }
+  body.all-down #down { display: block; }
+  body.all-down #status { display: none; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: .35rem .7rem; border-bottom: 1px solid var(--line); }
+  th { font-size: .8rem; text-transform: uppercase; color: var(--muted); }
+  td.empty { color: #888; font-style: italic; }
+  #in-doubt td:not(.empty) { background: var(--doubt); }
+  code { font-size: .9em; }
+  .muted { color: #777; font-size: .85rem; margin: .4rem 0 0; }
+  .via { color: #777; font-size: .85rem; }
+</style>
+</head>
+<body>
+<h1>Crash one node mid-commit — another node finishes it</h1>
+<p class="lead">Every node shares PostgreSQL, Artemis and the <strong>LogCloud</strong> transaction log in PostgreSQL. Crash a node after the XA prepare: the node that leads recovery commits what it left behind — no restart, no local disk.</p>
+
+<label>Product <input id="product" value="book"></label>
+<div id="nodes"></div>
+<p id="result"></p>
+
+<div id="down">💀 All nodes are down. Start one with <code>mvn spring-boot:run</code>.</div>
+<div id="status">
+  <h2>Orders <span id="via" class="via"></span></h2>
+  <table>
+    <thead><tr><th>Order</th><th>Product</th><th>Placed by</th><th>Shipment</th><th>Shipped by</th></tr></thead>
+    <tbody id="orders"></tbody>
+  </table>
+
+  <h2>In-doubt (prepared) transactions in PostgreSQL</h2>
+  <table>
+    <thead><tr><th>XID</th><th>Prepared</th></tr></thead>
+    <tbody id="in-doubt"></tbody>
+  </table>
+
+  <h2>LogCloud transaction log (table <code>COORDINATOR</code>)</h2>
+  <table>
+    <thead><tr><th>Transaction</th><th>State</th><th>Recovery domain</th></tr></thead>
+    <tbody id="log"></tbody>
+  </table>
+  <p class="muted">Every commit decision is written here before phase 2, and cleaned up shortly after both resources have committed. A row that stays while its node is down is a transaction left halfway — any node of the domain can finish it.</p>
+
+  <h2>Recovery leader (table <code>LEADER</code>)</h2>
+  <table>
+    <thead><tr><th>JVM</th><th>Lease</th></tr></thead>
+    <tbody id="leader"></tbody>
+  </table>
+  <p class="muted">One node at a time runs recovery for the whole domain and renews its lease. When the leader dies, its lease expires and another node takes over.</p>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const host = location.hostname || 'localhost';
+  const ports = (new URLSearchParams(location.search).get('nodes') || '8080,8081').split(',').map(p => p.trim());
+  const nodes = new Map(); // port -> last status, or null when down
+
+  function nodeCard(port) {
+    const card = document.createElement('div');
+    card.className = 'node';
+    card.id = 'node-' + port;
+    card.innerHTML = `<h3>Node :${port}<span class="badge" hidden>👑 recovery leader</span></h3>
+      <p class="state">…</p>
+      <div class="buttons">
+        <button class="order">Place an order</button>
+        <button class="crash">💣 Crash after prepare</button>
+      </div>`;
+    card.querySelector('.order').onclick = () => order(port);
+    card.querySelector('.crash').onclick = () => order(port, 'after-prepare');
+    return card;
+  }
+  $('nodes').replaceChildren(...ports.map(nodeCard));
+
+  async function order(port, crash) {
+    const params = new URLSearchParams({ product: $('product').value || 'book' });
+    if (crash) params.set('crash', crash);
+    $('result').textContent = crash ? `💣 node :${port} places an order and crashes after the prepare…` : `node :${port} places an order…`;
+    try {
+      const response = await fetch(`http://${host}:${port}/orders?${params}`, { method: 'POST' });
+      $('result').textContent = response.ok ? `node :${port} ${await response.text()}` : 'error: HTTP ' + response.status;
+    } catch (e) {
+      $('result').textContent = crash ? `💥 no answer: node :${port} crashed — watch the other node finish the commit` : `💥 no answer from node :${port}`;
+    }
+  }
+
+  function rows(tbody, items, cells, empty, columns) {
+    tbody.replaceChildren(...(items.length ? items.map(item => {
+      const tr = document.createElement('tr');
+      for (const value of cells(item)) {
+        const td = document.createElement('td');
+        td.textContent = value ?? '';
+        tr.append(td);
+      }
+      return tr;
+    }) : [Object.assign(document.createElement('tr'), { innerHTML: `<td class="empty" colspan="${columns}">${empty}</td>` })]));
+  }
+
+  async function poll(port) {
+    try {
+      const response = await fetch(`http://${host}:${port}/status`, { signal: AbortSignal.timeout(1500) });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      nodes.set(port, await response.json());
+    } catch (e) {
+      nodes.set(port, null);
+    }
+  }
+
+  function render() {
+    const up = ports.filter(p => nodes.get(p));
+    document.body.classList.toggle('all-down', up.length === 0);
+    const status = nodes.get(up[0]); // the shared state, read through any node that is up
+    const leader = status && status.leader[0];
+    const leaderValid = leader && leader.expiresInSeconds > 0;
+    for (const port of ports) {
+      const card = $('node-' + port), s = nodes.get(port);
+      card.className = 'node ' + (s ? 'up' : 'down');
+      card.querySelector('.state').textContent = s ? `✅ up · JVM ${s.jvmId}` : '💀 down';
+      card.querySelector('.badge').hidden = !(s && leaderValid && leader.activeJvmId === s.jvmId);
+      card.querySelectorAll('button').forEach(b => b.disabled = !s);
+    }
+    if (!status) return;
+    $('via').textContent = `(read through node :${status.node})`;
+    rows($('orders'), status.orders, o => [o.order, o.product, o.placedBy && ':' + o.placedBy, o.shipment, o.shippedBy && ':' + o.shippedBy], 'no orders yet', 5);
+    rows($('in-doubt'), status.inDoubt, t => [t.gid, new Date(t.prepared).toLocaleTimeString()], 'none', 2);
+    rows($('log'), status.log, l => [l.id, l.state, l.domain], 'empty — nothing left to finish', 3);
+    const owner = leader && ports.find(p => nodes.get(p) && nodes.get(p).jvmId === leader.activeJvmId);
+    rows($('leader'), leader ? [leader] : [], l => [
+        l.activeJvmId + (owner ? ` (node :${owner})` : ' (not a running node)'),
+        l.expiresInSeconds > 0 ? `valid for ${l.expiresInSeconds}s more` : `expired ${-l.expiresInSeconds}s ago — the next node to renew takes over`],
+      'no leader yet', 2);
+  }
+
+  (function loop() { Promise.all(ports.map(poll)).then(render).finally(() => setTimeout(loop, 500)); })();
+</script>
+</body>
+</html>
