@@ -37,7 +37,8 @@ public class SampleAtomikosApplicationTests {
 
 	@Test
 	public void testTransactionRollback(CapturedOutput capturedOutput) throws Exception {
-		SampleAtomikosApplication.main(new String[] {});
+		// In-memory database so that each run starts from an empty schema
+		SampleAtomikosApplication.main(new String[] { "--spring.datasource.url=jdbc:h2:mem:logcloud;DB_CLOSE_DELAY=-1" });
 		String output = capturedOutput.getOut();
 		assertThat(output).has(substring(1, "---->"));
 		assertThat(output).has(substring(1, "----> josh"));
