@@ -17,6 +17,7 @@
 package com.atomikos.demo;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,9 +29,16 @@ import com.atomikos.springboot.autoconfigure.jdbc.logcloud.LogCloudDataSourceBea
  * Spring Boot 4 replacement for Atomikos' LogCloudDataSourceConfiguration, which is
  * compiled against the pre-Boot 4 location of {@link DataSourceProperties}.
  * Registers a LogCloud datasource that reuses the application's datasource settings.
+ * <p>
+ * Only when LogCloud is on the classpath: without the transactions-logcloud jar,
+ * Atomikos falls back to its file-based log (the {@code TRANSACTION_LOG=file} mode).
  */
 @Configuration(proxyBeanMethods = false)
+@ConditionalOnClass(name = LogCloudConfiguration.LOGCLOUD_LOG_FACTORY)
 class LogCloudConfiguration {
+
+	// what Atomikos finds through ServiceLoader to keep its log in the database
+	static final String LOGCLOUD_LOG_FACTORY = "com.atomikos.logcloud.oltp.JdbcOltpLogFactory";
 
 	// LoadTimeWeaverAware beans are initialized before regular singletons, so the
 	// LogCloud datasource is registered before the Atomikos transaction service starts.

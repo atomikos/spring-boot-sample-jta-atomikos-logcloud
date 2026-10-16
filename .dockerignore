@@ -1,0 +1,4 @@
+# the image only needs the jar built on the host and the entrypoint
+*
+!target/spring-boot-sample-jta-atomikos-logcloud-*.jar
+!docker/

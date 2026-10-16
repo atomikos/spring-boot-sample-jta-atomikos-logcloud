@@ -54,17 +54,24 @@
   code { font-size: .9em; }
   .muted { color: #777; font-size: .85rem; margin: .4rem 0 0; }
   .via { color: #777; font-size: .85rem; }
+  #mode { font-weight: 600; padding: .5rem .8rem; border-radius: .4rem; margin: 0 0 1rem; }
+  #mode.logcloud { background: #ddf4ff; }
+  #mode.file { background: #fff1f0; }
+  #mode:empty { display: none; }
+  .note { color: var(--muted); margin: .5rem 0; }
+  #result code { background: #1a1a1a; color: #fff; padding: .1rem .4rem; border-radius: .25rem; }
 </style>
 </head>
 <body>
-<h1>Crash one node mid-commit — another node finishes it</h1>
-<p class="lead">Every node shares PostgreSQL, Artemis and the <strong>LogCloud</strong> transaction log in PostgreSQL. Crash a node after the XA prepare: the node that leads recovery commits what it left behind — no restart, no local disk.</p>
+<h1 id="title">Crash one node mid-commit — another node finishes it</h1>
+<p class="lead" id="lead">Every node shares PostgreSQL, Artemis and the <strong>LogCloud</strong> transaction log in PostgreSQL. Crash a node after the XA prepare: the node that leads recovery commits what was left behind — no restart, no local disk.</p>
+<p id="mode"></p>
 
 <label>Product <input id="product" value="book"></label>
 <div id="nodes"></div>
 <p id="result"></p>
 
-<div id="down">💀 All nodes are down. Start one with <code>./mvnw spring-boot:run</code>.</div>
+<div id="down">💀 All nodes are down. Start one with <code>./mvnw spring-boot:run</code>, or <code>docker compose --profile nodes up -d</code>.</div>
 <div id="status">
   <h2>Orders <span id="via" class="via"></span></h2>
   <table>
@@ -78,19 +85,25 @@
     <tbody id="in-doubt"></tbody>
   </table>
 
-  <h2>LogCloud transaction log (table <code>COORDINATOR</code>)</h2>
-  <table>
-    <thead><tr><th>Transaction</th><th>State</th><th>Recovery domain</th></tr></thead>
-    <tbody id="log"></tbody>
-  </table>
-  <p class="muted">Every commit decision is written here before phase 2, and cleaned up shortly after both resources have committed. A row that stays while its node is down is a transaction left halfway — any node of the domain can finish it.</p>
+  <div id="file-mode-note" hidden>
+    <h2>LogCloud transaction log and recovery leader</h2>
+    <p class="note">Not used in file mode: each node keeps its commit decisions in <code>/app/transaction-logs</code> on its own disk, and only that node can finish its transactions. Kill it and its in-doubt transaction stays above, holding its locks, until it comes back <em>with that disk</em> (<code>docker start</code>). Bring it back without it (<code>docker rm</code>, then <code>up</code>) and, minutes later, the new node rolls the transaction back — an order whose commit was already decided is lost.</p>
+  </div>
+  <div id="logcloud-tables">
+    <h2>LogCloud transaction log (table <code>COORDINATOR</code>)</h2>
+    <table>
+      <thead><tr><th>Transaction</th><th>State</th><th>Recovery domain</th></tr></thead>
+      <tbody id="log"></tbody>
+    </table>
+    <p class="muted">Every commit decision is written here before phase 2, and cleaned up shortly after both resources have committed. A row that stays while its node is down is a transaction left halfway — any node of the domain can finish it.</p>
 
-  <h2>Recovery leader (table <code>LEADER</code>)</h2>
-  <table>
-    <thead><tr><th>JVM</th><th>Lease</th></tr></thead>
-    <tbody id="leader"></tbody>
-  </table>
-  <p class="muted">One node at a time runs recovery for the whole domain and renews its lease. When the leader dies, its lease expires and another node takes over.</p>
+    <h2>Recovery leader (table <code>LEADER</code>)</h2>
+    <table>
+      <thead><tr><th>JVM</th><th>Lease</th></tr></thead>
+      <tbody id="leader"></tbody>
+    </table>
+    <p class="muted">One node at a time runs recovery for the whole domain and renews its lease. When the leader dies (or hangs), its lease expires and another node takes over.</p>
+  </div>
 </div>
 
 <script>
@@ -98,32 +111,47 @@
   const host = location.hostname || 'localhost';
   const ports = (new URLSearchParams(location.search).get('nodes') || '8080,8081').split(',').map(p => p.trim());
   const nodes = new Map(); // port -> last status, or null when down
+  const names = new Map(); // port -> container name, remembered while the node is down
+  const LOGCLOUD_LEAD = $('lead').innerHTML;
+
+  function label(port) {
+    return names.get(port) ? `${names.get(port)} :${port}` : `node :${port}`;
+  }
 
   function nodeCard(port) {
     const card = document.createElement('div');
     card.className = 'node';
     card.id = 'node-' + port;
-    card.innerHTML = `<h3>Node :${port}<span class="badge" hidden>👑 recovery leader</span></h3>
+    card.innerHTML = `<h3><span class="name">Node :${port}</span><span class="badge" hidden>👑 recovery leader</span></h3>
       <p class="state">…</p>
       <div class="buttons">
         <button class="order">Place an order</button>
         <button class="crash">💣 Crash after prepare</button>
+        <button class="crash freeze" hidden>⏸ Freeze after prepare</button>
       </div>`;
     card.querySelector('.order').onclick = () => order(port);
-    card.querySelector('.crash').onclick = () => order(port, 'after-prepare');
+    card.querySelector('.crash:not(.freeze)').onclick = () => order(port, 'crash');
+    card.querySelector('.freeze').onclick = () => order(port, 'freeze');
     return card;
   }
   $('nodes').replaceChildren(...ports.map(nodeCard));
 
-  async function order(port, crash) {
+  async function order(port, action) {
     const params = new URLSearchParams({ product: $('product').value || 'book' });
-    if (crash) params.set('crash', crash);
-    $('result').textContent = crash ? `💣 node :${port} places an order and crashes after the prepare…` : `node :${port} places an order…`;
+    if (action) params.set(action, 'after-prepare');
+    const node = label(port), container = names.get(port);
+    if (action === 'freeze') {
+      // the frozen node never answers: don't wait for it, tell the presenter what to do next
+      fetch(`http://${host}:${port}/orders?${params}`, { method: 'POST' }).catch(() => {});
+      $('result').innerHTML = `⏸ ${node} is frozen in the middle of the commit. Now kill it from outside: <code>docker kill ${container}</code>`;
+      return;
+    }
+    $('result').textContent = action ? `💣 ${node} places an order and crashes after the prepare…` : `${node} places an order…`;
     try {
       const response = await fetch(`http://${host}:${port}/orders?${params}`, { method: 'POST' });
-      $('result').textContent = response.ok ? `node :${port} ${await response.text()}` : 'error: HTTP ' + response.status;
+      $('result').textContent = response.ok ? `${node} ${await response.text()}` : 'error: HTTP ' + response.status;
     } catch (e) {
-      $('result').textContent = crash ? `💥 no answer: node :${port} crashed — watch the other node finish the commit` : `💥 no answer from node :${port}`;
+      $('result').textContent = action ? `💥 no answer: ${node} crashed — watch what happens to its transaction` : `💥 no answer from ${node}`;
     }
   }
 
@@ -155,26 +183,44 @@
     const status = nodes.get(up[0]); // the shared state, read through any node that is up
     const leader = status && status.leader[0];
     const leaderValid = leader && leader.expiresInSeconds > 0;
+    const file = status && status.transactionLog === 'file';
     for (const port of ports) {
       const card = $('node-' + port), s = nodes.get(port);
+      if (s && s.name) names.set(port, s.name);
       card.className = 'node ' + (s ? 'up' : 'down');
-      card.querySelector('.state').textContent = s ? `✅ up · JVM ${s.jvmId}` : '💀 down';
-      card.querySelector('.badge').hidden = !(s && leaderValid && leader.activeJvmId === s.jvmId);
+      card.querySelector('.name').textContent = label(port);
+      card.querySelector('.state').textContent = s ? `✅ up · transaction manager "${s.transactionManager}" · JVM ${s.jvmId}` : '💀 down (or not responding)';
+      card.querySelector('.badge').hidden = file || !(s && leaderValid && leader.activeJvmId === s.jvmId);
       card.querySelectorAll('button').forEach(b => b.disabled = !s);
+      if (s) card.querySelector('.freeze').hidden = !s.canFreeze; // only in Docker
     }
     if (!status) return;
+    $('title').textContent = file ? 'Crash one node mid-commit — no other node can finish it'
+      : 'Crash one node mid-commit — another node finishes it';
+    $('lead').innerHTML = file
+      ? 'The same shop <strong>without LogCloud</strong>: each node keeps its transaction log on its own disk, as with the open-source edition. Crash a node after the XA prepare and its transaction is stuck — the other nodes cannot see its commit decision.'
+      : LOGCLOUD_LEAD;
+    $('mode').className = file ? 'file' : 'logcloud';
+    $('mode').textContent = file
+      ? '📁 Transaction log: a file on each node\'s own disk (no LogCloud) — each node can only finish its own transactions'
+      : '☁️ Transaction log: LogCloud, shared in PostgreSQL — any node can finish any node\'s transactions';
+    $('file-mode-note').hidden = !file;
+    $('logcloud-tables').hidden = file;
     $('via').textContent = `(read through node :${status.node})`;
     rows($('orders'), status.orders, o => [o.order, o.product, o.placedBy && ':' + o.placedBy, o.shipment, o.shippedBy && ':' + o.shippedBy], 'no orders yet', 5);
     rows($('in-doubt'), status.inDoubt, t => [t.gid, new Date(t.prepared).toLocaleTimeString()], 'none', 2);
     rows($('log'), status.log, l => [l.id, l.state, l.domain], 'empty — nothing left to finish', 3);
     const owner = leader && ports.find(p => nodes.get(p) && nodes.get(p).jvmId === leader.activeJvmId);
     rows($('leader'), leader ? [leader] : [], l => [
-        l.activeJvmId + (owner ? ` (node :${owner})` : ' (not a running node)'),
+        l.activeJvmId + (owner ? ` (node :${owner})` : ' (not responding: down or frozen)'),
         l.expiresInSeconds > 0 ? `valid for ${l.expiresInSeconds}s more` : `expired ${-l.expiresInSeconds}s ago — the next node to renew takes over`],
       'no leader yet', 2);
   }
 
-  (function loop() { Promise.all(ports.map(poll)).then(render).finally(() => setTimeout(loop, 500)); })();
+  // one loop per node: a node that hangs (frozen) must not hold up the others
+  for (const port of ports) {
+    (function loop() { poll(port).then(render).finally(() => setTimeout(loop, 500)); })();
+  }
 </script>
 </body>
 </html>

@@ -1,5 +1,10 @@
 # PostgreSQL (orders, shipments and the LogCloud transaction log) and Artemis (the orders queue),
-# shared by every node of the demo. Spring Boot starts it on mvn spring-boot:run.
+# shared by every node of the demo. Spring Boot starts them on ./mvnw spring-boot:run.
+#
+# The two demo nodes run here too, under the "nodes" profile (so ./mvnw spring-boot:run on the
+# host does not start them):
+#   ./mvnw package -DskipTests && docker compose --profile nodes up --build -d
+# TRANSACTION_LOG=file runs both nodes without LogCloud, each with its log on its own disk.
 services:
   postgres:
     image: postgres:17-alpine
@@ -20,3 +25,48 @@ services:
     ports:
       - "61616:61616"
       - "8161:8161"
+
+  node-a:
+    profiles: [nodes]
+    build: .
+    image: logcloud-demo-node
+    container_name: node-a
+    # Java is not PID 1, so that "Freeze after prepare" can SIGSTOP it (PID 1 ignores that)
+    init: true
+    environment: &node
+      NODE_NAME: node-a
+      SERVER_PORT: 8080
+      # one switch for both nodes: logcloud (default) or file
+      TRANSACTION_LOG: ${TRANSACTION_LOG:-logcloud}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shop
+      SPRING_ARTEMIS_BROKER_URL: tcp://artemis:61616?connectionTTL=3000&clientFailureCheckPeriod=1000
+      SPRING_DOCKER_COMPOSE_ENABLED: "false"
+      # inside the container: gone when the container is removed (only used in file mode)
+      ATOMIKOS_PROPERTIES_LOGBASEDIR: /app/transaction-logs
+    ports:
+      - "8080:8080"
+    depends_on: [postgres, artemis]
+    healthcheck:
+      test: ["CMD", "bash", "-c", ":> /dev/tcp/localhost/8080"]
+      interval: 2s
+      retries: 60
+
+  node-b:
+    profiles: [nodes]
+    image: logcloud-demo-node
+    container_name: node-b
+    init: true
+    environment:
+      <<: *node
+      NODE_NAME: node-b
+      SERVER_PORT: 8081
+    ports:
+      - "8081:8081"
+    # node-a creates the tables; start node-b once it is up
+    depends_on:
+      node-a:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", ":> /dev/tcp/localhost/8081"]
+      interval: 2s
+      retries: 60

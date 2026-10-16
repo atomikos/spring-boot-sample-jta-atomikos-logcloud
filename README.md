@@ -90,6 +90,60 @@ window): [`CrashSwitch`](src/main/java/com/atomikos/demo/CrashSwitch.java) and
 wrap the PostgreSQL `XAConnection` to halt the JVM right before the phase-2
 commit, for that one request only. Demo plumbing — a real application needs none of it.
 
+## Kill a real container
+
+The crash above is the app halting itself. To kill a node from the outside — as
+an orchestrator kills a pod, taking its local disk with it — run the two nodes as
+containers instead (stop the `./mvnw` nodes first: same ports, same database):
+
+```bash
+./mvnw package -DskipTests                  # the image is built from this jar
+docker compose --profile nodes up --build -d
+```
+
+The nodes are `node-a` (http://localhost:8080/) and `node-b` (:8081). In a
+container, the page also offers **⏸ Freeze after prepare**: the node stops
+dead (`SIGSTOP`, the whole JVM) at the same point as the crash — both resources
+prepared, the decision logged, nothing committed — and waits for you:
+
+```bash
+docker kill node-a
+```
+
+With LogCloud, you don't even have to be quick: a frozen node is a hung node, so
+its lease runs out and the other node commits its transaction about 15 seconds
+after the freeze, killed or not. Freeze the follower instead and the leader
+finishes it within about half a minute.
+
+## And without LogCloud?
+
+The same two containers, each with its transaction log in a file on its own disk
+(`/app/transaction-logs`) — what you get with the open-source edition:
+
+```bash
+docker compose --profile nodes down -v      # never mix the two modes in one database
+TRANSACTION_LOG=file docker compose --profile nodes up -d
+```
+
+(On Windows PowerShell: `$env:TRANSACTION_LOG="file"; docker compose --profile nodes up -d`.)
+
+Each node now has its own transaction manager name (`node-a`, `node-b`), as it
+must with file logs. Freeze `node-a` after the prepare and `docker kill node-a`:
+
+- **The other node can do nothing.** The commit decision is on `node-a`'s disk.
+  The transaction stays in `pg_prepared_xacts`, holding its locks, and the order
+  never appears — for as long as `node-a` is gone.
+- **`node-a` comes back with its disk** (`docker start node-a`): it reads its log
+  and commits the transaction within about 10 seconds.
+- **`node-a` comes back without its disk** — a rescheduled pod
+  (`docker rm node-a`, then `docker compose --profile nodes up -d node-a`): it has
+  no record of the decision, and about 5 minutes later it rolls the prepared
+  branches back. An order whose commit had been decided is gone — no order, no
+  shipment.
+
+Switch back with `docker compose --profile nodes down -v` and start without
+`TRANSACTION_LOG`. The page shows which mode is running.
+
 ## How it's wired
 
 The business code is one `@Transactional` method
@@ -155,9 +209,18 @@ the test runner too, so the tests check recovery within one node:
 - A `COMMITTING` row also appears briefly for every transaction that completes
   normally: the decision is written before phase 2 and cleaned up shortly after.
   Only a row that stays while its node is down is a transaction left halfway.
+- **A hung node and Artemis.** The nodes connect to Artemis with
+  `connectionTTL=3000`, so the broker drops a frozen node after about 3 seconds —
+  well before its lease expires and another node recovers its transactions. With
+  a TTL close to the lease time (we tried 10 seconds), Artemis 2.40 and 2.44
+  intermittently failed to roll back the frozen node's session
+  (`AMQ222104 ... Cannot find tx with id`) while the other node was recovering,
+  and the committed order's message stayed stuck in "delivering", never shipped.
+  A node that dies (rather than hangs) closes its connection at once and was
+  never affected.
 
 ## Reset
 
 ```bash
-docker compose down -v    # stops PostgreSQL and Artemis and deletes their data, including the LogCloud log
+docker compose --profile nodes down -v    # stops the nodes, PostgreSQL and Artemis, and deletes their data, including the LogCloud log
 ```

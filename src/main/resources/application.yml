@@ -12,10 +12,13 @@ spring:
     xa:
       data-source-class-name: org.postgresql.xa.PGXADataSource
 
-  # Artemis; Spring Boot creates an XA ConnectionFactory for it
+  # Artemis; Spring Boot creates an XA ConnectionFactory for it.
+  # connectionTTL: Artemis drops a node that hangs (instead of dying) after 3s rather
+  # than the default 60s - before its lease expires and another node recovers its
+  # transactions (see README, "Notes").
   artemis:
     mode: native
-    broker-url: tcp://localhost:61616
+    broker-url: tcp://localhost:61616?connectionTTL=3000&clientFailureCheckPeriod=1000
     user: artemis
     password: artemis
 

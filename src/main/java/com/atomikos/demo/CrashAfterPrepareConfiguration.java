@@ -33,7 +33,9 @@ import org.springframework.context.annotation.Configuration;
 import com.atomikos.spring.AtomikosXADataSourceWrapper;
 
 /**
- * Demo plumbing for {@code ?crash=after-prepare}: hands Atomikos the PostgreSQL
+ * Demo plumbing for {@code ?crash=after-prepare} and {@code ?freeze=after-prepare}
+ * (Atomikos commits PostgreSQL first, so nothing is committed yet at that point):
+ * hands Atomikos the PostgreSQL
  * {@link XADataSource} as usual, but its connections call {@link CrashSwitch}
  * right before the phase-2 commit. Not something a real application needs.
  */

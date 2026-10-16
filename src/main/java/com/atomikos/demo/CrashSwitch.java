@@ -36,16 +36,23 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * window.
  * <p>
  * {@code POST /orders?crash=after-prepare} arms it for that one request only.
- * Other requests, and other nodes recovering the transaction, never crash.
- * Demo plumbing only - a real application needs none of it.
+ * {@code POST /orders?freeze=after-prepare} stops that request at the same point
+ * without halting, so that the node can be killed from outside (for example with
+ * {@code docker kill}). Other requests, and other nodes recovering the
+ * transaction, never crash or freeze. Demo plumbing only - a real application
+ * needs none of it.
  */
 @Component
 public class CrashSwitch extends OncePerRequestFilter {
 
+	private enum Action {
+		CRASH, FREEZE
+	}
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(CrashSwitch.class);
 
-	// whether the order being placed on this thread should crash
-	private static final ThreadLocal<Boolean> ARMED = new ThreadLocal<>();
+	// what the order being placed on this thread should do after the prepare, if anything
+	private static final ThreadLocal<Action> ARMED = new ThreadLocal<>();
 
 	private Runnable crash = () -> Runtime.getRuntime().halt(1);
 
@@ -53,7 +60,10 @@ public class CrashSwitch extends OncePerRequestFilter {
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
 			throws ServletException, IOException {
 		if ("after-prepare".equals(request.getParameter("crash"))) {
-			arm();
+			arm(Action.CRASH);
+		}
+		else if ("after-prepare".equals(request.getParameter("freeze"))) {
+			arm(Action.FREEZE);
 		}
 		try {
 			chain.doFilter(request, response);
@@ -64,17 +74,23 @@ public class CrashSwitch extends OncePerRequestFilter {
 	}
 
 	void beforePhase2Commit() {
-		if (Boolean.TRUE.equals(ARMED.get())) {
-			LOGGER.error("💥 CRASH! PostgreSQL and Artemis both PREPARED, commit decision logged in LogCloud, "
+		Action action = ARMED.get();
+		if (action == Action.CRASH) {
+			LOGGER.error("💥 CRASH! PostgreSQL and Artemis both PREPARED, commit decision logged, "
 					+ "PostgreSQL NOT committed yet - halting the JVM now");
 			System.out.flush();
 			this.crash.run();
+		}
+		else if (action == Action.FREEZE) {
+			LOGGER.error("⏸ FROZEN! PostgreSQL and Artemis both PREPARED, commit decision logged, "
+					+ "PostgreSQL NOT committed yet - kill this node now (docker kill)");
+			freeze();
 		}
 	}
 
 	/** For tests: place an order that crashes after the prepare. */
 	long placeOrderAndCrash(LongSupplier placeOrder) {
-		arm();
+		arm(Action.CRASH);
 		try {
 			return placeOrder.getAsLong();
 		}
@@ -88,9 +104,39 @@ public class CrashSwitch extends OncePerRequestFilter {
 		this.crash = crash;
 	}
 
-	private static void arm() {
-		LOGGER.warn("💣 this order will crash after the prepare");
-		ARMED.set(true);
+	private static void arm(Action action) {
+		LOGGER.warn(action == Action.CRASH ? "💣 this order will crash after the prepare"
+				: "⏸ this order will freeze after the prepare");
+		ARMED.set(action);
+	}
+
+	/**
+	 * Stops the whole JVM (SIGSTOP), as a hung node would: no recovery thread,
+	 * no lease renewal - nothing runs until the node is killed from outside.
+	 * Freezing only this thread is not enough: the node's own recovery would
+	 * finish the frozen commit within seconds. Needs a Unix process that is not
+	 * PID 1 of its container, hence {@code init: true} in compose.yaml.
+	 */
+	static boolean canFreeze() {
+		return System.getenv("NODE_NAME") != null && ProcessHandle.current().pid() != 1;
+	}
+
+	private static void freeze() {
+		if (!canFreeze()) {
+			throw new IllegalStateException("freeze needs a node running in Docker (see compose.yaml)");
+		}
+		try {
+			System.out.flush();
+			new ProcessBuilder("kill", "-STOP", String.valueOf(ProcessHandle.current().pid())).start().waitFor();
+			Thread.sleep(Long.MAX_VALUE); // in case the JVM is ever resumed instead of killed
+		}
+		catch (IOException ex) {
+			throw new IllegalStateException("could not freeze the JVM", ex);
+		}
+		catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			throw new IllegalStateException("frozen order interrupted", ex);
+		}
 	}
 
 }

@@ -18,10 +18,12 @@ package com.atomikos.demo;
 
 import java.lang.management.ManagementFactory;
 import java.util.Map;
+import java.util.Objects;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.ClassUtils;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -58,13 +60,21 @@ public class StatusController {
 	// how LogCloud identifies this JVM in LEADER.ACTIVE_JVM_ID (pid@host)
 	private static final String JVM_ID = ManagementFactory.getRuntimeMXBean().getName();
 
+	// "logcloud" (shared, in PostgreSQL) or "file" (on this node's own disk)
+	private static final String TRANSACTION_LOG = ClassUtils.isPresent(LogCloudConfiguration.LOGCLOUD_LOG_FACTORY,
+			StatusController.class.getClassLoader()) ? "logcloud" : "file";
+
 	private final JdbcTemplate jdbc;
 
 	private final int node;
 
-	public StatusController(JdbcTemplate jdbc, @Value("${server.port}") int node) {
+	private final String transactionManager;
+
+	public StatusController(JdbcTemplate jdbc, @Value("${server.port}") int node,
+			@Value("${atomikos.properties.transaction-manager-unique-name}") String transactionManager) {
 		this.jdbc = jdbc;
 		this.node = node;
+		this.transactionManager = transactionManager;
 	}
 
 	// the page on one node polls every node, so allow cross-origin reads
@@ -73,7 +83,12 @@ public class StatusController {
 	@Transactional(readOnly = true)
 	public Map<String, Object> status() {
 		return Map.of("node", this.node,
+				// the container name when running in Docker (compose.yaml), else empty
+				"name", Objects.requireNonNullElse(System.getenv("NODE_NAME"), ""),
 				"jvmId", JVM_ID,
+				"transactionLog", TRANSACTION_LOG,
+				"transactionManager", this.transactionManager,
+				"canFreeze", CrashSwitch.canFreeze(),
 				"orders", this.jdbc.queryForList(ORDERS),
 				"inDoubt", this.jdbc.queryForList(IN_DOUBT),
 				"log", this.jdbc.queryForList(LOG),
