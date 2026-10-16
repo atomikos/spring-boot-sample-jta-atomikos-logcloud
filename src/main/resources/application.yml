@@ -4,7 +4,7 @@ spring:
 
   # PostgreSQL through its XA driver, so it can join a distributed transaction.
   # The URL is explicit (not only a Docker Compose service connection) because
-  # LogCloudConfiguration reuses it for the LogCloud transaction log.
+  # transactions-spring-boot-logcloud reuses it for the LogCloud transaction log.
   datasource:
     url: jdbc:postgresql://localhost:5432/shop
     username: shop

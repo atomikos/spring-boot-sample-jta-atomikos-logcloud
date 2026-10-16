@@ -218,8 +218,8 @@ What makes the nodes one cluster ([`application.yml`](src/main/resources/applica
   The `LEADER` table elects the one node that runs recovery for the whole domain.
 - **The same resource names** (`shopDB`, `shopJMS`) on every node: a node can only
   recover the prepared branches of a resource it knows by the same name.
-- **The LogCloud datasource** is the application's own PostgreSQL
-  ([`LogCloudConfiguration`](src/main/java/com/atomikos/demo/LogCloudConfiguration.java)),
+- **The LogCloud datasource** is the application's own PostgreSQL (configured
+  automatically by `transactions-spring-boot-logcloud` from `spring.datasource.*`),
   so no second database is needed. [`schema.sql`](src/main/resources/schema.sql)
   creates its tables; every node runs it at startup, so it is idempotent.
 - **`ddl-auto: update`**, never `create-drop`: a node that stops must not drop the
@@ -232,9 +232,8 @@ demo (`default-jta-timeout` and `recovery.delay` of 5 seconds; with these
 settings the leader lease lasted 5 to 10 seconds in our runs); production would
 use its real values.
 
-`transactions-spring-boot-logcloud` is not auto-configured: `LogCloudConfiguration`
-imports its `LogCloudDataSourceConfiguration`, and only when LogCloud is on the
-classpath, so that the same image can also run without it.
+`transactions-spring-boot-logcloud` is auto-configured: having it on the classpath
+is enough, no Atomikos code is needed in the application.
 
 ## Tests
 
