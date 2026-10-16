@@ -23,7 +23,7 @@ Latest stable version: <!--VERSION-->6.0.120<!--/VERSION-->
 
 ## Run it
 
-You need Java 17+, Maven, Docker, and an
+You need Java 17+, Docker (Maven comes with the wrapper, `./mvnw`), and an
 [ExtremeTransactions free trial](https://www.atomikos.com/Main/ExtremeTransactionsFreeTrial?Source=github)
 (it gives you access to the Maven repository with the `com.atomikos` artifacts).
 
@@ -32,11 +32,12 @@ and Artemis (`compose.yaml`) and creates the tables, so start the second one
 once the first is up:
 
 ```bash
-mvn spring-boot:run "-Dspring-boot.run.arguments=--server.port=8080"
-mvn spring-boot:run "-Dspring-boot.run.arguments=--server.port=8081"
+./mvnw spring-boot:run "-Dspring-boot.run.arguments=--server.port=8080"
+./mvnw spring-boot:run "-Dspring-boot.run.arguments=--server.port=8081"
 ```
 
-(Keep the quotes: without them, PowerShell splits the argument at the dot.)
+On Windows, use `.\mvnw` instead of `./mvnw`, and keep the quotes: without them,
+PowerShell splits the argument at the dot.
 
 Open **http://localhost:8080/**. The page shows both nodes (which one is up,
 which one is the recovery leader) and the shared state in PostgreSQL: orders and
@@ -135,7 +136,7 @@ pre-Boot 4 package of `DataSourceProperties`. It does the same thing on Boot 4.
 ## Tests
 
 ```bash
-mvn test
+./mvnw test
 ```
 
 Testcontainers starts PostgreSQL and Artemis (the tests are skipped without
