@@ -1,14 +1,24 @@
+name: Update Atomikos version
 on:
   schedule:
     - cron: '0 6 * * *'
   workflow_dispatch:
+# the job pushes the README update back to the repository
+permissions:
+  contents: write
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - run: |
-          VERSION=$(curl -s --compressed https://www.atomikos.com/Main/WebHome | grep -oP 'Latest version \K[\d.]+')
+          set -euo pipefail
+          VERSION=$(curl -sf --compressed https://www.atomikos.com/Main/WebHome | grep -oP 'Latest version \K\d+(\.\d+)+' | head -n 1 || true)
+          # never write an empty or garbled version: fail the run so it shows up instead
+          if ! [[ "$VERSION" =~ ^[0-9]+(\.[0-9]+)+$ ]]; then
+            echo "::error::Could not find the latest Atomikos version on atomikos.com (got '${VERSION}')"
+            exit 1
+          fi
           sed -i "s/<!--VERSION-->.*<!--\/VERSION-->/<!--VERSION-->${VERSION}<!--\/VERSION-->/" README.md
       - run: |
           git config user.name "github-actions"
