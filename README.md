@@ -21,6 +21,10 @@ Every `com.atomikos` dependency in this project's `pom.xml` (not only `transacti
 None of these coordinates, at this version, are published to Maven Central. The free trial link below is required to build the whole project, not only its LogCloud-specific part.
 Latest stable version: <!--VERSION-->6.0.120<!--/VERSION-->
 
+This demo needs `transactions-spring-boot4-logcloud`, the Spring Boot 4 LogCloud
+module, which is new in 6.0.121: until that is released, the POM builds with
+`6.0.121-SNAPSHOT`.
+
 ## Run it
 
 You need Java 17+, Docker (Maven comes with the wrapper, `./mvnw`), and an
@@ -159,8 +163,38 @@ public long placeOrder(String product) {
 ```
 
 With `transactions-spring-boot4-starter` on the classpath, that is one XA
-transaction across PostgreSQL and Artemis. Adding `transactions-logcloud` moves
-the transaction log from local files into the database.
+transaction across PostgreSQL and Artemis. Adding `transactions-spring-boot4-logcloud`
+(which brings `transactions-logcloud`) moves the transaction log from local files
+into the database ([`pom.xml`](pom.xml)):
+
+```xml
+<dependencyManagement>
+    <dependencies>
+        <!-- the right (jakarta or not) variant of every ExtremeTransactions artifact -->
+        <dependency>
+            <groupId>com.atomikos</groupId>
+            <artifactId>extreme-transactions-jakarta</artifactId>
+            <version>${atomikos.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+
+<dependency>
+    <groupId>com.atomikos</groupId>
+    <artifactId>transactions-spring-boot4-starter</artifactId>
+    <version>${atomikos.version}</version>
+</dependency>
+<dependency>
+    <groupId>com.atomikos</groupId>
+    <artifactId>transactions-spring-boot4-logcloud</artifactId>
+</dependency>
+<dependency>  <!-- needed at runtime by transactions-remoting, but provided-scope there -->
+    <groupId>jakarta.ws.rs</groupId>
+    <artifactId>jakarta.ws.rs-api</artifactId>
+</dependency>
+```
 
 What makes the nodes one cluster ([`application.yml`](src/main/resources/application.yml)):
 
@@ -183,9 +217,9 @@ demo (`default-jta-timeout` and `recovery.delay` of 5 seconds; with these
 settings the leader lease lasted 5 to 10 seconds in our runs); production would
 use its real values.
 
-`LogCloudConfiguration` exists because the `LogCloudDataSourceConfiguration` that
-ships in `transactions-spring-boot-logcloud` 6.0.120 is compiled against the
-pre-Boot 4 package of `DataSourceProperties`. It does the same thing on Boot 4.
+`transactions-spring-boot4-logcloud` is not auto-configured: `LogCloudConfiguration`
+imports its `LogCloudDataSourceConfiguration`, and only when LogCloud is on the
+classpath, so that the same image can also run without it.
 
 ## Tests
 
